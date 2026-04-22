@@ -1,0 +1,57 @@
+{
+  "name": "lockedin-pro-desktop",
+  "version": "1.0.0",
+  "description": "LockedIn Pro — Desktop",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win --x64",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.lockedinpro.app",
+    "productName": "LockedIn Pro",
+    "directories": {
+      "output": "../dist-electron"
+    },
+    "extraResources": [
+      {
+        "from": "resources/bin",
+        "to": "bin",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "resources/ollama-models",
+        "to": "ollama-models",
+        "filter": ["**/*"]
+      }
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      { "from": "../frontend/dist", "to": "frontend/dist", "filter": ["**/*"] }
+    ],
+    "win": {
+      "target": [{ "target": "dir", "arch": ["x64"] }],
+      "icon": "../frontend/public/LockedIn-logo.png",
+      "forceCodeSigning": false
+    },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "icon": "../frontend/public/LockedIn-logo.png"
+    },
+    "linux": {
+      "target": [{ "target": "AppImage", "arch": ["x64"] }]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

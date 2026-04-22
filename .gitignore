@@ -1,0 +1,32 @@
+node_modules/
+dist/
+dist-electron/
+.vite/
+build/
+.env
+.env.local
+
+# Desktop build artifacts
+electron/dist/
+electron/dist-electron/
+electron/resources/bin/
+electron/resources/ollama-models/
+electron/release/
+
+# Frontend build artifacts
+frontend/dist/
+frontend/android/app/build/
+frontend/public/models/
+frontend/public/wllama/
+
+# Capacitor
+frontend/android/.gradle/
+frontend/android/.idea/
+frontend/android/app/build/
+frontend/android/build/
+frontend/ios/App/Pods/
+frontend/ios/App/build/
+
+# OS generated files
+.DS_Store
+Thumbs.db

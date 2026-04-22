@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(node -e \"const pkg=require\\('./package.json'\\); console.log\\(JSON.stringify\\(Object.keys\\(pkg.dependencies\\).concat\\(Object.keys\\(pkg.devDependencies\\)\\), null, 2\\)\\)\")"
+    ]
+  }
+}
