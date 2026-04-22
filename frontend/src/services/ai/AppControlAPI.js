@@ -142,6 +142,11 @@ export class AppControlAPI {
         return `📡 NOTIFICATION SCHEDULE SET`;
       }
 
+      case 'LOCK_APP_SECTION': {
+        // Reserved for future use — section locking not yet implemented
+        return null;
+      }
+
       default:
         return null;
     }
