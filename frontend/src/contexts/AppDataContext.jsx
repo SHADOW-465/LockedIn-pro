@@ -4,10 +4,13 @@ import db, { AppState } from '../services/db/db';
 import { StatsService } from '../services/db/StatsService';
 import { MandateService } from '../services/db/MandateService';
 import { JournalService, GazeService } from '../services/db/JournalService';
+import { MandateFeedbackService } from '../services/ai/MandateFeedbackService';
+import { useHierarchy } from './HierarchyContext';
 
 const AppDataContext = createContext(null);
 
 export const AppDataProvider = ({ children }) => {
+  const { updateLevel } = useHierarchy();
   const [stats, setStats] = useState({
     streak: 0,
     integrity: 1.0,
@@ -21,28 +24,21 @@ export const AppDataProvider = ({ children }) => {
   });
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // --- Live Mandate Query (auto-updates UI on any change) ---
   const mandates = useLiveQuery(
     () => db.mandates.orderBy('createdAt').reverse().toArray(),
-    [],
-    []
+    [], []
   );
 
-  // --- Live Journal Query ---
   const journalEntries = useLiveQuery(
     () => db.journal_entries.orderBy('createdAt').reverse().toArray(),
-    [],
-    []
+    [], []
   );
 
-  // --- Live Gaze Sessions ---
   const gazeSessions = useLiveQuery(
     () => db.gaze_sessions.orderBy('createdAt').reverse().toArray(),
-    [],
-    []
+    [], []
   );
 
-  // --- Recalculate all stats whenever any live data changes ---
   const refreshStats = useCallback(async () => {
     setStatsLoading(true);
     const freshStats = await StatsService.getDashboardStats();
@@ -54,15 +50,28 @@ export const AppDataProvider = ({ children }) => {
     refreshStats();
   }, [mandates, journalEntries, gazeSessions, refreshStats]);
 
-  // --- Mandate Actions ---
+  const setAppState = useCallback((key, value) => AppState.set(key, value), []);
+  const getAppState = useCallback((key) => AppState.get(key), []);
+
+  // Controllers object passed to AI actions that need to mutate state
+  const getControllers = useCallback(() => ({
+    updateLevel,
+    setAppState,
+    refreshStats,
+  }), [updateLevel, setAppState, refreshStats]);
+
   const addMandate = useCallback(async (mandateData) => {
     await MandateService.add(mandateData);
-    // useLiveQuery will auto-refresh mandates; stats will cascade
   }, []);
 
   const completeMandate = useCallback(async (id, completionData) => {
+    // Snapshot mandate before completing (needed for feedback prompt)
+    const mandate = await db.mandates.get(id);
     await MandateService.complete(id, completionData);
-  }, []);
+
+    // Fire-and-forget: AI reviews the completion and injects chat message
+    MandateFeedbackService.trigger(mandate, completionData, getControllers());
+  }, [getControllers]);
 
   const deleteMandate = useCallback(async (id) => {
     await MandateService.delete(id);
@@ -72,35 +81,22 @@ export const AppDataProvider = ({ children }) => {
     await MandateService.issuePenance(penanceData);
   }, []);
 
-  // --- Journal Actions ---
   const addJournalEntry = useCallback(async (entryData) => {
-    const id = await JournalService.add(entryData);
-    return id;
+    return JournalService.add(entryData);
   }, []);
 
-  // --- Gaze Actions ---
   const recordGazeSession = useCallback(async (sessionData) => {
-    const id = await GazeService.add(sessionData);
-    return id;
+    return GazeService.add(sessionData);
   }, []);
-
-  // --- AppState helpers ---
-  const getAppState = useCallback((key) => AppState.get(key), []);
-  const setAppState = useCallback((key, value) => AppState.set(key, value), []);
 
   return (
     <AppDataContext.Provider value={{
-      // Live data
       mandates: mandates || [],
       journalEntries: journalEntries || [],
       gazeSessions: gazeSessions || [],
-
-      // Computed stats
       stats,
       statsLoading,
       refreshStats,
-
-      // Actions
       addMandate,
       completeMandate,
       deleteMandate,
