@@ -3,7 +3,14 @@
     "allow": [
       "Bash(npm install *)",
       "Bash(npm run *)",
-      "Bash(node -e \"const pkg=require\\('./package.json'\\); console.log\\(JSON.stringify\\(Object.keys\\(pkg.dependencies\\).concat\\(Object.keys\\(pkg.devDependencies\\)\\), null, 2\\)\\)\")"
+      "Bash(node -e \"const pkg=require\\('./package.json'\\); console.log\\(JSON.stringify\\(Object.keys\\(pkg.dependencies\\).concat\\(Object.keys\\(pkg.devDependencies\\)\\), null, 2\\)\\)\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(node --check /c/Users/acer/Documents/projects/LockedIn-pro/frontend/src/services/db/db.js)",
+      "Bash(node -c frontend/src/services/db/DocumentService.js)",
+      "Bash(node -c frontend/src/services/db/PunishmentService.js)",
+      "Bash(npx vite *)",
+      "Bash(node node_modules/.bin/vite build)"
     ]
   }
 }
