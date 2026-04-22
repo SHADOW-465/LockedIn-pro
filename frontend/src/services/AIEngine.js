@@ -1,15 +1,17 @@
 import { AppState } from './db/db';
 
+const DEFAULT_MODEL = 'huihui_ai/qwen3.5-abliterated:0.8b';
 const DEFAULT_OLLAMA_URL = 'http://localhost:11434';
-const DEFAULT_MODEL = 'llama3.2';
 
 export class AIEngine {
   static async getConfig() {
     const url = (await AppState.get('ollamaUrl')) || DEFAULT_OLLAMA_URL;
     const model = (await AppState.get('ollamaModel')) || DEFAULT_MODEL;
-    return { url: url.replace(/\/$/, ''), model };
+    const visionModel = (await AppState.get('ollamaVisionModel')) || model;
+    return { url: url.replace(/\/$/, ''), model, visionModel };
   }
 
+  /** True if Ollama process is reachable at all. */
   static async isAvailable() {
     try {
       const { url } = await this.getConfig();
@@ -19,6 +21,40 @@ export class AIEngine {
       return res.ok;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * True if Ollama is running AND the configured model is loaded.
+   * Returns { available: bool, model: string, reason: string }
+   */
+  static async getStatus() {
+    try {
+      const { url, model } = await this.getConfig();
+      const res = await fetch(`${url}/api/tags`, {
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!res.ok) return { available: false, model, reason: 'Ollama not running' };
+
+      const data = await res.json();
+      const loadedModels = (data.models || []).map(m => m.name);
+      const modelBase = model.split(':')[0];
+
+      // Match exact name or prefix (e.g. "huihui_ai/qwen3.5-abliterated:0.8b" matches "huihui_ai/qwen3.5-abliterated")
+      const isLoaded = loadedModels.some(m => m === model || m.startsWith(modelBase));
+
+      if (!isLoaded) {
+        return {
+          available: false,
+          model,
+          reason: `Model "${model}" not found. Run: ollama pull ${model}`,
+          loadedModels,
+        };
+      }
+
+      return { available: true, model, reason: 'Ready' };
+    } catch {
+      return { available: false, model: DEFAULT_MODEL, reason: 'Ollama not running' };
     }
   }
 
@@ -39,7 +75,7 @@ export class AIEngine {
       options: {
         temperature: 0.88,
         top_p: 0.92,
-        num_predict: 320,
+        num_predict: 400,
         repeat_penalty: 1.1,
       },
     };
@@ -58,11 +94,9 @@ export class AIEngine {
 
   /**
    * Vision analysis of a base64 image for gaze/compliance verification.
-   * Falls back to text-only judgment if the model doesn't support images.
    */
   static async analyzeGaze(imageBase64) {
-    const { url, model } = await this.getConfig();
-    const visionModel = (await AppState.get('ollamaVisionModel')) || model;
+    const { url, visionModel } = await this.getConfig();
     const pureBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
     const body = {
@@ -71,7 +105,7 @@ export class AIEngine {
         {
           role: 'system',
           content:
-            'You are The Architect performing a visual compliance inspection. Analyze the image. Is the subject present, attentive, and showing appropriate posture? Begin your response with exactly PASS or FAIL, then give one terse sentence from The Architect\'s perspective.',
+            'You are The Architect performing a visual compliance inspection. Analyze the image. Is the subject present, attentive, and showing appropriate posture? Begin your response with exactly PASS or FAIL, then give one terse sentence.',
         },
         {
           role: 'user',
