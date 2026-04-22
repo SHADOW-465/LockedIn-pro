@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAppData } from '../contexts/AppDataContext';
 import { ScrollGenerator } from '../services/export/ScrollGenerator';
+import { useLiveQuery } from 'dexie-react-hooks';
+import db from '../services/db/db';
 
 const MOODS = ['Obedient', 'Struggling', 'Craving', 'Broken', 'Grateful', 'Defiant', 'Neutral'];
 
@@ -65,6 +67,12 @@ export default function Chronicle() {
   const [exportOpts, setExportOpts] = useState({ includePhotos: true, includeAiComments: true, includeStats: true });
   const [exporting, setExporting] = useState(false);
   const [exportDone, setExportDone] = useState(false);
+
+  const punishments = useLiveQuery(
+    () => db.punishments_log.orderBy('issuedAt').reverse().toArray(),
+    [],
+    []
+  );
 
   const handleExport = async () => {
     setExporting(true);
@@ -133,7 +141,13 @@ export default function Chronicle() {
 
         {/* View Tabs */}
         <div className="flex gap-2">
-          {[['journal', 'Journal'], ['calendar', 'Calendar'], ['history', 'Inspection Log'], ['export', '⬇ The Scroll']].map(([key, label]) => (
+          {[
+            ['journal', 'Journal'],
+            ['calendar', 'Calendar'],
+            ['history', 'Inspection Log'],
+            ['sanctions', '⚡ Sanctions'],
+            ['export', '⬇ The Scroll'],
+          ].map(([key, label]) => (
             <button
               key={key}
               onClick={() => setView(key)}
@@ -230,6 +244,52 @@ export default function Chronicle() {
                   </div>
                   {session.aiComment && (
                     <p className="text-xs mt-2 font-mono text-on-surface-variant leading-relaxed">{session.aiComment}</p>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Sanctions View */}
+        {view === 'sanctions' && (
+          <div className="space-y-3">
+            {(!punishments || punishments.length === 0) ? (
+              <div className="text-center py-16 text-on-surface-variant font-mono text-xs">
+                No sanctions issued. The Architect is watching.
+              </div>
+            ) : (
+              punishments.map(p => (
+                <div
+                  key={p.id}
+                  className={`bg-surface-container border rounded-2xl p-4 space-y-2 ${
+                    p.type === 'reward'
+                      ? 'border-green-900/30'
+                      : 'border-red-900/20'
+                  }`}
+                >
+                  <div className="flex justify-between items-start gap-2">
+                    <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                      p.type === 'reward'
+                        ? 'bg-green-500/20 text-green-400'
+                        : p.severity === 'High'
+                          ? 'bg-red-500/20 text-red-400'
+                          : 'bg-orange-500/20 text-orange-400'
+                    }`}>
+                      {p.type === 'reward' ? '↓ Reward' : `↑ ${p.severity}`}
+                    </span>
+                    <span className="text-[10px] text-on-surface-variant font-mono flex-shrink-0">
+                      {new Date(p.issuedAt).toLocaleString('en-US', {
+                        month: 'short', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-sm text-neutral-200 leading-relaxed">{p.reason}</p>
+                  {p.aiComment && (
+                    <p className="text-xs text-primary/70 italic border-t border-outline/10 pt-2">
+                      {p.aiComment}
+                    </p>
                   )}
                 </div>
               ))
