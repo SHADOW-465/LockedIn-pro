@@ -3,6 +3,7 @@ import GazeInspection from '../components/GazeInspection';
 import HierarchySelector from '../components/HierarchySelector';
 import { useAppData } from '../contexts/AppDataContext';
 import { useHierarchy } from '../contexts/HierarchyContext';
+import LockTimer from '../components/LockTimer';
 
 function StatPill({ label, value, highlight }) {
   return (
@@ -34,6 +35,9 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Live Lock Timer */}
+      <LockTimer />
+
       {/* Integrity Factor */}
       <div className="bg-surface-container rounded-3xl p-6 border border-outline/10 relative overflow-hidden">
         <div className="flex justify-between items-start mb-4">
@@ -58,9 +62,8 @@ export default function Home() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <StatPill label="Day Streak" value={statsLoading ? '—' : stats.streak} highlight />
-        <StatPill label="Days Locked" value={statsLoading ? '—' : stats.daysLocked} />
         <StatPill label="Inspections" value={statsLoading ? '—' : stats.totalGaze} />
       </div>
 

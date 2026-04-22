@@ -156,6 +156,36 @@ function MessageBubble({ msg }) {
   );
 }
 
+function AIStatusDot() {
+  const [status, setStatus] = React.useState('checking');
+
+  React.useEffect(() => {
+    import('../services/AIEngine').then(({ AIEngine }) => {
+      AIEngine.getStatus().then(s => {
+        setStatus(s.available ? 'ready' : 'offline');
+      });
+    });
+  }, []);
+
+  const colors = {
+    checking: 'bg-neutral-600',
+    ready: 'bg-green-500 animate-pulse',
+    offline: 'bg-red-700',
+  };
+  const titles = {
+    checking: 'Checking AI...',
+    ready: 'AI Online',
+    offline: 'AI Offline — using behavioral responses',
+  };
+
+  return (
+    <div
+      className={`w-2 h-2 rounded-full ${colors[status]}`}
+      title={titles[status]}
+    />
+  );
+}
+
 export default function MasterChat() {
   const { updateLevel } = useHierarchy();
   const { stats, mandates, journalEntries, setAppState, refreshStats } = useAppData();
@@ -245,7 +275,7 @@ export default function MasterChat() {
       <div className="flex-shrink-0 bg-neutral-950/90 backdrop-blur-xl border-b border-neutral-800/50 px-6 py-4">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <AIStatusDot />
             <div>
               <h2 className="font-display text-base font-bold text-neutral-100 tracking-tighter uppercase">The Architect</h2>
               <p className="text-[10px] font-mono text-primary/70 uppercase tracking-widest">In Session · Always Watching</p>
@@ -305,7 +335,7 @@ export default function MasterChat() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } }}
-            placeholder="Speak to the Architect..."
+            placeholder="Speak to the Architect... (request time adjustments, report compliance, confess failures)"
             rows={2}
             disabled={isGenerating}
             className="flex-1 bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-neutral-200 placeholder:text-neutral-600 outline-none focus:border-primary/40 transition-colors resize-none leading-relaxed disabled:opacity-50"
