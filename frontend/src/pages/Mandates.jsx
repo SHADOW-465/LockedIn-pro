@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useAppData } from '../contexts/AppDataContext';
 import LiveCameraVerifier from '../components/LiveCameraVerifier';
 import { UnifiedAIEngine as AIEngine } from '../services/UnifiedAIEngine';
+import { UnifiedAIEngine } from '../services/UnifiedAIEngine';
 
 const IMPORTANCE = ['High', 'Medium', 'Low'];
 const CATEGORIES = ['Mandate', 'Penance', 'Discipline', 'Journal', 'Affirmation'];
@@ -32,6 +33,42 @@ function CompletionTypeIcon({ type }) {
   );
 }
 
+function getVisualInstruction(mandate) {
+  const t = (mandate.title + ' ' + (mandate.category || '')).toLowerCase();
+  if (/kneel|pos(e|ition)|bow|prostrat/.test(t))
+    return `Assume the required position for "${mandate.title}". Hold it still. Face the lens directly.`;
+  if (/gaze|stare|eyes|look/.test(t))
+    return `Look directly into the camera. Steady. The Architect is watching your eyes.`;
+  if (/face|selfie|photo|picture|show yourself/.test(t))
+    return `Present your face clearly. No obstructions. Face the camera without looking away.`;
+  if (/dress|wear|outfit|collar/.test(t))
+    return `Show what has been required. Hold still long enough for the Architect to assess.`;
+  return `Present yourself for inspection. Face the camera. Comply with the mandate exactly before capturing.`;
+}
+
+function VisualAIStatus() {
+  const [status, setStatus] = React.useState('checking');
+
+  React.useEffect(() => {
+    UnifiedAIEngine.isAvailable().then(available => {
+      setStatus(available ? 'ready' : 'unavailable');
+    });
+  }, []);
+
+  if (status === 'checking') return null;
+
+  return (
+    <div className={`flex items-center gap-2 text-[10px] font-mono px-1 ${
+      status === 'ready' ? 'text-green-500/70' : 'text-neutral-600'
+    }`}>
+      <div className={`w-1.5 h-1.5 rounded-full ${
+        status === 'ready' ? 'bg-green-500' : 'bg-neutral-600'
+      }`} />
+      {status === 'ready' ? 'AI visual grading active' : 'AI offline — visual capture accepted as-is'}
+    </div>
+  );
+}
+
 function MandateCard({ mandate, isActive, onActivate, onComplete, onDelete }) {
   const isPending = mandate.status === 'pending';
   const isMaster = mandate.issuedByMaster;
@@ -39,6 +76,7 @@ function MandateCard({ mandate, isActive, onActivate, onComplete, onDelete }) {
 
   const [report, setReport] = useState('');
   const [capturedImage, setCapturedImage] = useState(null);
+  const [visualGrading, setVisualGrading] = useState(null); // 'grading' | {success, comment} | null
   const [submitting, setSubmitting] = useState(false);
   const [verdict, setVerdict] = useState(null); // { accepted, comment }
 
@@ -190,33 +228,69 @@ function MandateCard({ mandate, isActive, onActivate, onComplete, onDelete }) {
           )}
 
           {completionType === 'visual' ? (
-            <>
-              <div className="space-y-1">
-                <p className="text-[9px] font-mono uppercase tracking-widest text-violet-400">Visual Verification</p>
-                <p className="text-[10px] text-neutral-500 font-mono leading-relaxed">
-                  The camera opens live. You cannot submit a photo from your gallery. Face it.
-                </p>
-              </div>
+            <div className="space-y-3">
+              <VisualAIStatus />
+
               <LiveCameraVerifier
-                autoStart={true}
-                onCapture={setCapturedImage}
+                autoStart
+                instruction={getVisualInstruction(mandate)}
+                onCapture={async (dataUrl) => {
+                  setCapturedImage(dataUrl);
+                  try {
+                    const available = await UnifiedAIEngine.isAvailable();
+                    if (available) {
+                      setVisualGrading('grading');
+                      const result = await UnifiedAIEngine.analyzeGaze(dataUrl);
+                      setVisualGrading(result);
+                    }
+                  } catch {
+                    setVisualGrading(null);
+                  }
+                }}
                 onCancel={() => onActivate(null)}
               />
-              {capturedImage && (
-                <div className="space-y-2 pt-1">
-                  <p className="text-[9px] font-mono uppercase tracking-widest text-neutral-500">
-                    Add a written note (optional)
-                  </p>
-                  <textarea
-                    rows={2}
-                    value={report}
-                    onChange={e => setReport(e.target.value)}
-                    placeholder="Any additional context for the record..."
-                    className="w-full bg-neutral-900 border border-neutral-800 focus:border-neutral-700 rounded-xl px-4 py-2.5 text-sm text-neutral-200 placeholder:text-neutral-700 outline-none resize-none leading-relaxed transition-colors font-mono"
-                  />
+
+              {visualGrading === 'grading' && (
+                <div className="flex items-center gap-2 text-[10px] font-mono text-neutral-500 px-1">
+                  <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+                  The Architect is reviewing your submission...
                 </div>
               )}
-            </>
+              {visualGrading && visualGrading !== 'grading' && (
+                <div className={`rounded-xl p-3 border text-xs font-mono leading-relaxed ${
+                  visualGrading.success
+                    ? 'bg-green-950/30 border-green-900/40 text-green-300'
+                    : 'bg-red-950/30 border-red-900/40 text-red-300'
+                }`}>
+                  <span className="font-bold uppercase tracking-widest text-[10px] block mb-1">
+                    {visualGrading.success ? '✓ Compliant' : '✗ Non-Compliant'}
+                  </span>
+                  {visualGrading.comment}
+                </div>
+              )}
+
+              {capturedImage && visualGrading !== 'grading' && (
+                <>
+                  {visualGrading && !visualGrading.success ? (
+                    <p className="text-[10px] text-red-400 font-mono text-center">
+                      Retake required. The Architect rejected your submission.
+                    </p>
+                  ) : (
+                    <button
+                      onClick={() => onComplete(mandate.id, {
+                        imageDataUrl: capturedImage,
+                        aiVerdict: visualGrading
+                          ? JSON.stringify(visualGrading)
+                          : null,
+                      })}
+                      className="w-full py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest bg-neutral-100 text-neutral-950 hover:opacity-90 active:scale-95 transition-all"
+                    >
+                      Submit Verification
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           ) : (
             <>
               <div className="space-y-1">

@@ -9,7 +9,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
  *   onCapture  — called with (dataUrl) when user captures
  *   onCancel   — called when user cancels/closes
  */
-export default function LiveCameraVerifier({ autoStart = true, onCapture, onCancel }) {
+export default function LiveCameraVerifier({ autoStart = true, onCapture, onCancel, instruction }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const [phase, setPhase] = useState('starting'); // starting | live | captured | error
@@ -210,7 +210,7 @@ export default function LiveCameraVerifier({ autoStart = true, onCapture, onCanc
 
       {/* Instruction */}
       <p className="text-[10px] font-mono text-neutral-500 leading-relaxed text-center px-2">
-        Face the lens directly. Do not look away. Press capture when ready — a 3-second countdown will fire.
+        {instruction || 'Face the lens directly. Do not look away. Press capture when ready — a 3-second countdown will fire.'}
       </p>
 
       {/* Capture button */}
